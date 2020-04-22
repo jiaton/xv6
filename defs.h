@@ -105,6 +105,7 @@ int             pipewrite(struct pipe*, char*, int);
 // proc.c
 int             cpuid(void);
 void            exit(void);
+void            exit_status(int status);
 int             fork(void);
 int             growproc(int);
 int             kill(int);
@@ -117,7 +118,7 @@ void            sched(void);
 void            setproc(struct proc*);
 void            sleep(void*, struct spinlock*);
 void            userinit(void);
-int             wait(void);
+int             wait(int *status);
 void            wakeup(void*);
 void            yield(void);
 

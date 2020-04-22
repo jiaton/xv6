@@ -19,11 +19,21 @@ sys_exit(void)
   exit();
   return 0;  // not reached
 }
+int
+sys_exit_status(void)
+{
+    int status;
+    argint(0, &status);
+    exit_status(status);
+    return 0; // not reached
+}
 
 int
 sys_wait(void)
 {
-  return wait();
+    int *status;
+    argptr(0, (char**)&status, sizeof(int*));
+    return wait(status);
 }
 
 int

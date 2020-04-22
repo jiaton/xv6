@@ -267,12 +267,20 @@ exit(void)
   panic("zombie exit");
 }
 
+void
+exit_status(int status)
+{
+    struct proc *curproc = myproc();
+    curproc->exit_status = status;
+    exit();
+}
+
 // Wait for a child process to exit and return its pid.
 // Return -1 if this process has no children.
 int
-wait(void)
+wait(int *status)
 {
-  struct proc *p;
+    struct proc *p;
   int havekids, pid;
   struct proc *curproc = myproc();
   
@@ -296,6 +304,9 @@ wait(void)
         p->killed = 0;
         p->state = UNUSED;
         release(&ptable.lock);
+        if(status) {
+            *status = p->exit_status;
+        }
         return pid;
       }
     }
@@ -531,4 +542,8 @@ procdump(void)
     }
     cprintf("\n");
   }
+}
+void mycall(void)
+{
+    cprintf("calling mycall!!!");
 }
