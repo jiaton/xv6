@@ -54,19 +54,12 @@ waitpidtest(void)
 
     }
     if(pid_1 == 0){
-//        printf(1,"wait for process %d\n",getpid());
+
         sleep(100);
         printf(1,"process %d exit\n",getpid());
         exit_status(1);
     }
-//    pid_2 = fork();
-//    if(pid_2 == 0){
-//        printf(1,"now waiting for pid %d...\n",pid_1);
-//        waitpid(pid_1,&status,0);
-//        printf(1,"now finish waiting\n");
 
-//        exit();
-//    }
     printf(1,"current process %d exit",getpid());
     exit();
 }
@@ -75,7 +68,7 @@ waitpidtest(void)
 int
 main(void)
 {
-//    forktest();
+    forktest();
     waitpidtest();
 
     exit();

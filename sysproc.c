@@ -45,10 +45,6 @@ sys_waitpid(void)
     argint(0, &pid);
     argptr(1, (char**)&status, sizeof(int*));
     argint(2, &options);
-//    if(argint(0, &pid) < 0)
-//        return -1;
-//    if(argint(2, &options) < 0)
-//        return -1;
     return waitpid(pid, status, options);
 }
 
