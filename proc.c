@@ -88,6 +88,8 @@ allocproc(void) {
     p->state = EMBRYO;
     p->pid = nextpid++;
     p->priority = 5;
+    p->create_time = ticks;
+    p->running_time = 0; // set running_time as 0 before process starts.
 
     release(&ptable.lock);
 
@@ -197,6 +199,8 @@ fork(void) {
     np->parent = curproc;
     *np->tf = *curproc->tf;
     np->priority = 5;
+    np->create_time = ticks;
+    np->running_time = 0; // set running_time as 0 before process starts.
 
     // Clear %eax so that fork returns 0 in the child.
     np->tf->eax = 0;
@@ -268,6 +272,9 @@ void
 exit_status(int status) {
     struct proc *curproc = myproc();
     curproc->exit_status = status;
+    uint turnaroundtime = ticks - curproc->create_time;
+    cprintf("Current priority:%d, Turnaround time: %d\n", curproc->priority, turnaroundtime);
+    cprintf("Current priority:%d, Wait time: %d\n", curproc->priority, turnaroundtime-curproc->running_time);
     exit();
 }
 
@@ -391,61 +398,50 @@ scheduler(void) {
     struct proc *p;
     struct proc *selected_p;
     struct cpu *c = mycpu();
+    int before_run;
     c->proc = 0;
 
     for (;;) {
         // Enable interrupts on this processor.
         sti();
-
         // Loop over process table looking for process to run.
         acquire(&ptable.lock);
-
-
+        // priority scheduling
         for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
             if (p->state != RUNNABLE)continue;
-
             selected_p = p;
-            for (p = selected_p; p < &ptable.proc[NPROC]; p++) {
+            for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
                 if (p->state != RUNNABLE)continue;
 
                 if (selected_p->priority > p->priority) {
                     selected_p = p;
                 }
             }
-            p = selected_p;
-            c->proc = p;
-            switchuvm(p);
-            p->state = RUNNING;
-
-            swtch(&(c->scheduler), p->context);
+//            p = selected_p;
+            c->proc = selected_p;
+            switchuvm(selected_p);
+            selected_p->state = RUNNING;
+            before_run= ticks;
+            // set waiting time of each waiting process, this operation should be before swtch() which will set the RUNNING state to RUNNABLE
+            for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+                if (p->state == RUNNABLE) {
+                    p->priority = (p->priority +32 - 1) % 32;
+//                    p->priority = p->priority - 1 >= 0 ? p->priority - 1 : 0;
+                }
+            }
+            swtch(&(c->scheduler), selected_p->context);
             switchkvm();
-
+            selected_p->running_time += ticks-before_run;
             c->proc = 0;
+//            p->priority=p->priority>=31? 31:p->priority+1;
+            selected_p->priority = (selected_p->priority + 1) % 32; // after running, increase its priority
+
+            /*optional: if not break, it will set next RUNNABLE process as first choice;
+             *          if break, we might get the same selected_p when there are 2 processes of the same priority*/
+//            break;
         }
+
         release(&ptable.lock);
-
-        continue;
-        for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-            if (p->state != RUNNABLE)
-                continue;
-
-            // Switch to chosen process.  It is the process's job
-            // to release ptable.lock and then reacquire it
-            // before jumping back to us.
-
-            c->proc = p;
-            switchuvm(p);
-            p->state = RUNNING;
-
-            swtch(&(c->scheduler), p->context);
-            switchkvm();
-
-            // Process is done running for now.
-            // It should have changed its p->state before coming back.
-            c->proc = 0;
-        }
-        release(&ptable.lock);
-
     }
 }
 
@@ -626,6 +622,7 @@ void mycall(void) {
 int set_priority(int priority) {
     struct proc *curproc = myproc();
     curproc->priority = priority;
-    sched();
+    yield();
+
     return 1;
 }
